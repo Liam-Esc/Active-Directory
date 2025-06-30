@@ -1,2 +1,3 @@
 # Active-Directory
-# in progress
+# WGU Active Directory and Script Deployments!
+# have a great day
