@@ -1,10 +1,9 @@
-<# 
+<#
     Liam Escusa 
     Student ID:  011950351
 #>
 
-# Check for existence of the Active Directory OU named "finance"
-
+# Check for existence of the Active Directory OU named "Finance"
 Import-Module ActiveDirectory
 
 try {
@@ -37,18 +36,21 @@ try {
     $users = Import-Csv -Path $csvPath
 
     foreach ($user in $users) {
-        $firstName = $user.'First Name'
-        $lastName = $user.'Last Name'
+        $firstName = $user.'First_Name'
+        $lastName = $user.'Last_Name'
         $displayName = "$firstName $lastName"
+        $samAccount = $user.samAccount
 
         New-ADUser `
             -Name $displayName `
             -GivenName $firstName `
             -Surname $lastName `
             -DisplayName $displayName `
-            -PostalCode $user.'Postal Code' `
-            -OfficePhone $user.'Office Phone' `
-            -MobilePhone $user.'Mobile Phone' `
+            -SamAccountName $samAccount `
+            -UserPrincipalName "$samAccount@consultingfirm.com" `
+            -PostalCode $user.PostalCode `
+            -OfficePhone $user.OfficePhone `
+            -MobilePhone $user.MobilePhone `
             -Path "OU=Finance,DC=consultingfirm,DC=com" `
             -AccountPassword (ConvertTo-SecureString "P@ssw0rd123!" -AsPlainText -Force) `
             -Enabled $true
@@ -61,4 +63,4 @@ try {
 
 # Output results to AdResults.txt
 Get-ADUser -Filter * -SearchBase "OU=Finance,DC=consultingfirm,DC=com" -Properties DisplayName,PostalCode,OfficePhone,MobilePhone > .\AdResults.txt
-Write-Host "Exported user data to AdResults.txt."
+
