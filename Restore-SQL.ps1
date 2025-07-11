@@ -1,71 +1,74 @@
 <#
-  Name: Liam Escusa
-  Student ID: 011950351
+    Liam Escusa
+    Student ID: 011950351
 #>
 
-# Load required SQL Server module
-if (Get-Module -Name sqlps) {
-    Remove-Module -Name sqlps
-}
-Import-Module -Name SqlServer -ErrorAction Stop
-
-# Define variables
-$sqlInstance = ".\SQLEXPRESS"
+# Set variables
 $dbName = "ClientDB"
+$serverInstance = ".\SQLEXPRESS"
 $tableName = "Client_A_Contacts"
 $csvPath = ".\NewClientData.csv"
 
 try {
-    # D1: Check if the database exists and drop it if it does
-    $db = Get-SqlDatabase -ServerInstance $sqlInstance -Name $dbName -ErrorAction SilentlyContinue
-    if ($db) {
-        Write-Host "Database '$dbName' exists. Dropping..." -ForegroundColor Yellow
+    # Import required module
+    if (Get-Module -Name sqlps) { Remove-Module sqlps }
+    Import-Module -Name SqlServer
+
+    # Check if the database exists and delete if it does
+    if (Get-SqlDatabase -Name $dbName -ServerInstance $serverInstance -ErrorAction SilentlyContinue) {
         $dropQuery = @"
 ALTER DATABASE [$dbName] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
 DROP DATABASE [$dbName];
 "@
-        Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $dropQuery -ErrorAction Stop
-        Write-Host "Database '$dbName' has been dropped." -ForegroundColor Red
+        Invoke-Sqlcmd -ServerInstance $serverInstance -Database "master" -Query $dropQuery
+        Write-Host "Database '$dbName' existed and was deleted." -ForegroundColor Yellow
     } else {
-        Write-Host "Database '$dbName' does not exist. Proceeding to create it." -ForegroundColor Green
+        Write-Host "Database '$dbName' does not exist." -ForegroundColor Cyan
     }
 
-    # D2: Create the new database
-    Invoke-Sqlcmd -ServerInstance $sqlInstance -Query "CREATE DATABASE [$dbName];" -ErrorAction Stop
-    Write-Host "Database '$dbName' has been created." -ForegroundColor Cyan
+    # Create the database
+    Invoke-Sqlcmd -ServerInstance $serverInstance -Database "master" -Query "CREATE DATABASE [$dbName]"
+    Write-Host "Database '$dbName' created successfully." -ForegroundColor Green
 
-    # D3: Create the Client_A_Contacts table
+    # Create the table
     $createTableQuery = @"
-USE [$dbName];
-CREATE TABLE dbo.$tableName (
-    FirstName NVARCHAR(50),
-    LastName NVARCHAR(50),
-    City NVARCHAR(50),
-    County NVARCHAR(50),
-    Zip NVARCHAR(15),
-    OfficePhone NVARCHAR(20),
-    MobilePhone NVARCHAR(20)
-);
+CREATE TABLE [$tableName] (
+    first_name NVARCHAR(50),
+    last_name NVARCHAR(50),
+    city NVARCHAR(50),
+    county NVARCHAR(50),
+    zip NVARCHAR(10),
+    officePhone NVARCHAR(20),
+    mobilePhone NVARCHAR(20)
+)
 "@
-    Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $createTableQuery -ErrorAction Stop
-    Write-Host "Table '$tableName' has been created." -ForegroundColor Cyan
+    Invoke-Sqlcmd -ServerInstance $serverInstance -Database $dbName -Query $createTableQuery
+    Write-Host "Table '$tableName' created successfully." -ForegroundColor Green
 
-    # D4: Import data from CSV into the table
-    $csvData = Import-Csv -Path $csvPath
-    foreach ($row in $csvData) {
+    # Import data from CSV
+    $rows = Import-Csv -Path $csvPath
+    foreach ($row in $rows) {
         $insertQuery = @"
-INSERT INTO [$dbName].dbo.$tableName (FirstName, LastName, City, County, Zip, OfficePhone, MobilePhone)
-VALUES (N'$($row.first_name)', N'$($row.last_name)', N'$($row.city)', N'$($row.county)', N'$($row.zip)', N'$($row.officePhone)', N'$($row.mobilePhone)');
+INSERT INTO [$tableName] (first_name, last_name, city, county, zip, officePhone, mobilePhone)
+VALUES (
+    N'$($row.first_name)',
+    N'$($row.last_name)',
+    N'$($row.city)',
+    N'$($row.county)',
+    N'$($row.zip)',
+    N'$($row.officePhone)',
+    N'$($row.mobilePhone)'
+)
 "@
-        Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $insertQuery -ErrorAction Stop
+        Invoke-Sqlcmd -ServerInstance $serverInstance -Database $dbName -Query $insertQuery
     }
-    Write-Host "Data from 'NewClientData.csv' has been imported into '$tableName'." -ForegroundColor Cyan
+    Write-Host "All records imported successfully from '$csvPath'." -ForegroundColor Green
 
-    # D5: Output the results into SqlResults.txt
-    Invoke-Sqlcmd -Database $dbName -ServerInstance $sqlInstance -Query "SELECT * FROM dbo.$tableName" > .\SqlResults.txt
-    Write-Host "SQL results saved to SqlResults.txt." -ForegroundColor Green
+    # Output the results to a text file
+    Invoke-Sqlcmd -Database $dbName -ServerInstance $serverInstance -Query "SELECT * FROM dbo.$tableName" > .\SqlResults.txt
+    Write-Host "SqlResults.txt has been created." -ForegroundColor Green
 
 } catch {
-    # E: Catch and display any errors
-    Write-Host "An error occurred: $_" -ForegroundColor Red
+    Write-Host "An error occurred!" -ForegroundColor Red
+    Write-Host $_
 }
