@@ -1,3 +1,3 @@
 # Active-Directory
-# Active Directory and Script Deployments projects in progress!
+# Active Directory and Script Deployments project!
 # have a great day
